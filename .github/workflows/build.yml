@@ -1,0 +1,52 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get files
+        uses: actions/checkout@v4
+
+      - name: Unzip project
+        run: |
+          if [ -f ConvoyTalk.zip ]; then
+            unzip -o ConvoyTalk.zip
+          fi
+          if [ ! -f settings.gradle.kts ] && [ -f ConvoyTalk/settings.gradle.kts ]; then
+            cp -r ConvoyTalk/. .
+          fi
+          ls -la
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Build APK
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Save APK (Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ConvoyTalk-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish APK (Releases)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Convoy Talk build ${{ github.run_number }}
+          files: app/build/outputs/apk/debug/app-debug.apk
